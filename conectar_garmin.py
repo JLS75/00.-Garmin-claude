@@ -24,7 +24,24 @@ except ImportError:
     sys.exit("Falta la librería. Ejecuta primero: ./instalar_y_conectar.sh "
              "(o pip install -r requirements.txt)")
 
-TOKENSTORE = os.getenv("GARMINTOKENS", str(Path.home() / ".garminconnect"))
+def _tokenstore() -> str:
+    """Carpeta de tokens: --tokens <carpeta>, $GARMINTOKENS o ~/.garminconnect."""
+    if "--tokens" in sys.argv:
+        i = sys.argv.index("--tokens")
+        if i + 1 < len(sys.argv):
+            return sys.argv[i + 1]
+    return os.getenv("GARMINTOKENS", str(Path.home() / ".garminconnect"))
+
+
+TOKENSTORE = _tokenstore()
+
+
+def _sin_curl_cffi() -> bool:
+    try:
+        import curl_cffi  # noqa: F401
+        return False
+    except ImportError:
+        return True
 
 
 def pedir_mfa() -> str:
@@ -84,6 +101,14 @@ def mostrar_resumen(api: Garmin) -> None:
     print(f"   Estrés medio: {s.get('averageStressLevel')}")
 
 
+def _pista_ipad() -> None:
+    if _sin_curl_cffi():
+        print("\nℹ️  Sin curl_cffi (p. ej. en iPad) Cloudflare puede bloquear el login.\n"
+              "   Si la contraseña es correcta, usa el plan B del README: haz el login\n"
+              "   una vez en un Mac/PC, copia garmin_tokens.json al iPad y ejecuta:\n"
+              "   python3 conectar_garmin.py --tokens <carpeta_con_el_json>")
+
+
 def main() -> int:
     try:
         api = conectar()
@@ -92,10 +117,12 @@ def main() -> int:
         return 0
     except GarminConnectAuthenticationError as e:
         print(f"❌ Error de autenticación: {e}")
+        _pista_ipad()
     except GarminConnectTooManyRequestsError:
         print("❌ Garmin ha limitado los intentos (429). Espera un rato y reintenta.")
     except GarminConnectConnectionError as e:
         print(f"❌ Error de conexión con Garmin: {e}")
+        _pista_ipad()
     except (KeyboardInterrupt, EOFError):
         print("\nCancelado.")
     return 1
