@@ -1,0 +1,7 @@
+.venv/
+__pycache__/
+*.pyc
+# Nunca subir tokens ni credenciales
+.garminconnect/
+garmin_tokens.json
+.env
